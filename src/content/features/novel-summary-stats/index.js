@@ -21,6 +21,8 @@ export class NovelSummaryStatsFeature extends BaseFeature {
 
   matches(url) {
     if (!url.includes('munpia.com')) return false;
+    // 소설 뷰어 화면에서는 회차 목록 및 상세 메타가 없으므로 제외
+    if (url.includes('/viewer/') || url.includes('/novel/viewer')) return false;
     return (
       url.includes('/novel/detail/') ||
       url.includes('/novel/') ||
@@ -146,7 +148,6 @@ export class NovelSummaryStatsFeature extends BaseFeature {
     }
 
     if (!targetRow) {
-      console.warn('[Munpia Utility] 상단 작품등록일 요소를 찾지 못했습니다.');
       return;
     }
 

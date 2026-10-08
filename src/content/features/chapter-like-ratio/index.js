@@ -24,6 +24,8 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
 
   matches(url) {
     if (!url.includes('munpia.com')) return false;
+    // 소설 본문 뷰어 화면에서는 회차 목록이 없으므로 제외
+    if (url.includes('/viewer/') || url.includes('/novel/viewer')) return false;
     return (
       url.includes('/novel/detail/') ||
       url.includes('/novel/') ||
