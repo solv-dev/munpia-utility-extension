@@ -1,0 +1,13 @@
+/**
+ * Munpia Utility Extension - Global Styles
+ */
+
+:root {
+  --munpia-util-primary: #0d6efd;
+  --munpia-util-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.munpia-utility-initialized {
+  /* 플러그인 로드 식별자 */
+}
+

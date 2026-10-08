@@ -1,0 +1,247 @@
+/* ============================================================
+   1. 회차 목록 인라인 분석 메타 (댓글 뒤에 동일 폰트 스타일로 연결)
+   ============================================================ */
+
+.munpia-inline-meta-addons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 12px;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.munpia-inline-meta-addons .munpia-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #71717a;
+  cursor: help;
+  transition: opacity 0.15s ease;
+}
+
+.munpia-inline-meta-addons .munpia-meta-item:hover {
+  opacity: 0.8;
+}
+
+.munpia-inline-meta-addons .meta-label {
+  color: #a1a1aa;
+  font-size: 11.5px;
+}
+
+.munpia-inline-meta-addons .meta-value {
+  color: #3f3f46;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+/* 이탈률 (음수: 이탈 발생 시 부드러운 붉은색 톤) */
+.munpia-inline-meta-addons .munpia-meta-item.drop-neg .meta-value {
+  color: #e11d48;
+}
+
+/* 이탈률 (양수: 독자 증가 시 부드러운 초록색 톤) */
+.munpia-inline-meta-addons .munpia-meta-item.drop-pos .meta-value {
+  color: #16a34a;
+}
+
+
+/* ============================================================
+   2. 작품 상단 조회수/구매수 분리 라인 (작품등록일 아랫줄, 아이콘 없음)
+   ============================================================ */
+
+/* 문피아 상단 메타 컨테이너 고정 높이(70px) 해제하여 가림 현상 원천 해결 */
+[class*="infoRows"] {
+  height: auto !important;
+  min-height: 70px !important;
+  gap: 6px !important;
+  justify-content: flex-start !important;
+}
+
+.munpia-clean-summary-line {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  color: #71717a;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex-wrap: wrap;
+}
+
+.munpia-clean-summary-line .summary-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.munpia-clean-summary-line .meta-label {
+  color: #a1a1aa;
+}
+
+.munpia-clean-summary-line .meta-value {
+  color: #27272a;
+  font-weight: 500;
+}
+
+.munpia-clean-summary-line .summary-meta-item.highlight-paid .meta-value {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+.munpia-clean-summary-line .meta-value.highlight-gold {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.munpia-clean-summary-line .summary-meta-divider {
+  color: #d4d4d8;
+  font-size: 11px;
+}
+
+/* ============================================================
+   3. 작품 상단 출판사 정산 라인 (완전 좌측 정렬 및 들여쓰기)
+   ============================================================ */
+
+.munpia-revenue-summary-line {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  gap: 3px !important;
+  margin-top: 5px !important;
+  margin-bottom: 6px !important;
+  font-size: 13px !important;
+  line-height: 19px !important;
+  color: #71717a;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.munpia-revenue-summary-line .rev-line {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  gap: 6px !important;
+}
+
+.munpia-revenue-summary-line .rev-line.rev-title {
+  margin-top: 2px;
+  font-weight: 600;
+  color: #52525b;
+}
+
+.munpia-revenue-summary-line .rev-line.rev-indent {
+  padding-left: 10px !important;
+}
+
+.munpia-revenue-summary-line .rev-label {
+  color: #71717a;
+}
+
+.munpia-revenue-summary-line .rev-value {
+  color: #27272a;
+  font-weight: 500;
+}
+
+.munpia-revenue-summary-line .rev-value.highlight-gold {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.munpia-revenue-summary-line .rev-net {
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+
+/* ============================================================
+   4. 문피아 다크모드 대응
+   ============================================================ */
+
+[data-theme="dark"] .munpia-inline-meta-addons .munpia-meta-item {
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .munpia-inline-meta-addons .meta-label {
+  color: #71717a;
+}
+
+[data-theme="dark"] .munpia-inline-meta-addons .meta-value {
+  color: #e4e4e7;
+}
+
+[data-theme="dark"] .munpia-inline-meta-addons .munpia-meta-item.drop-neg .meta-value {
+  color: #fb7185;
+}
+
+[data-theme="dark"] .munpia-inline-meta-addons .munpia-meta-item.drop-pos .meta-value {
+  color: #4ade80;
+}
+
+[data-theme="dark"] .munpia-clean-summary-line {
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .munpia-clean-summary-line .meta-label {
+  color: #71717a;
+}
+
+[data-theme="dark"] .munpia-clean-summary-line .meta-value {
+  color: #e4e4e7;
+}
+
+[data-theme="dark"] .munpia-clean-summary-line .summary-meta-item.highlight-paid .meta-value {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .munpia-clean-summary-line .meta-value.highlight-gold {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .munpia-clean-summary-line .summary-meta-divider {
+  color: #52525b;
+}
+
+/* 다크모드: 추정 수익 라인 */
+[data-theme="dark"] .munpia-revenue-summary-line {
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .munpia-revenue-summary-line .rev-line.rev-title {
+  color: #d4d4d8;
+}
+
+[data-theme="dark"] .munpia-revenue-summary-line .rev-label {
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .munpia-revenue-summary-line .rev-value {
+  color: #e4e4e7;
+}
+
+[data-theme="dark"] .munpia-revenue-summary-line .rev-value.highlight-gold {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .munpia-revenue-summary-line .rev-net {
+  color: #4ade80;
+}
+

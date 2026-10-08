@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "문피아 작품 분석 유틸리티 (Munpia Utility)",
+  "version": "0.4.2",
+  "description": "문피아 작품 분석을 위한 유틸리티 확장 프로그램 (회차별 인라인 비율/이탈률, 전 회차 정밀 구매수 및 추정 매출/작가 정산액 분석)",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.munpia.com/*",
+    "*://munpia.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.munpia.com/*",
+        "*://munpia.com/*"
+      ],
+      "js": [
+        "src/content/loader.js"
+      ],
+      "css": [
+        "src/content/styles/global.css",
+        "src/content/features/chapter-like-ratio/style.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content/*",
+        "src/content/core/*",
+        "src/content/features/*",
+        "src/content/features/chapter-like-ratio/*",
+        "src/content/features/novel-summary-stats/*"
+      ],
+      "matches": [
+        "*://*.munpia.com/*",
+        "*://munpia.com/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "문피아 작품 분석 유틸리티",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
