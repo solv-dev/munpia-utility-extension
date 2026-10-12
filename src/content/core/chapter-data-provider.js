@@ -82,9 +82,11 @@ export class ChapterDataProvider {
 
       allChapters.forEach((ch) => {
         const num = ch.num;
-        const hits = ch.viewCount || 0;
-        const likes = ch.likeCount || 0;
+        const hits = ch.viewCount || ch.hits || 0;
+        const likes = ch.likeCount || ch.likes || 0;
+        const commentCount = ch.commentCount ?? ch.replyCount ?? ch.comments ?? 0;
         const isPaid = !ch.free;
+        const createdAt = ch.createdAt || ch.regDate || ch.registDate || ch.createDate || ch.date || null;
 
         if (num) {
           this.chaptersMap.set(num, {
@@ -93,7 +95,9 @@ export class ChapterDataProvider {
             title: ch.title,
             hits,
             likes,
+            commentCount,
             isPaid,
+            createdAt,
           });
         }
 
@@ -160,6 +164,43 @@ export class ChapterDataProvider {
    */
   getChapter(num) {
     return this.chaptersMap.get(num);
+  }
+
+  /**
+   * 전체 회차 목록을 번호 순서(오름차순)로 반환합니다.
+   * @returns {Array<Object>}
+   */
+  getAllChapters() {
+    return Array.from(this.chaptersMap.values()).sort((a, b) => a.num - b.num);
+  }
+
+  /**
+   * 화면(DOM)에서 수집된 추가 메타(댓글수, 등록일 등)를 캐시에 동기화 보강합니다.
+   * @param {number} num
+   * @param {Object} data
+   */
+  updateChapterFromScreen(num, data) {
+    if (!num) return;
+    const existing = this.chaptersMap.get(num);
+    if (existing) {
+      if ((!existing.commentCount || existing.commentCount === 0) && data.comments > 0) {
+        existing.commentCount = data.comments;
+      }
+      if (!existing.createdAt && data.createdAt) {
+        existing.createdAt = data.createdAt;
+      }
+    } else {
+      this.chaptersMap.set(num, {
+        id: null,
+        num,
+        title: data.title || `${num}화`,
+        hits: data.hits || 0,
+        likes: data.likes || 0,
+        commentCount: data.comments || 0,
+        isPaid: Boolean(data.isPaid),
+        createdAt: data.createdAt || null,
+      });
+    }
   }
 
   /**

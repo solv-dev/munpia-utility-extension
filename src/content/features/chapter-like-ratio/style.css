@@ -71,6 +71,39 @@
   color: #16a34a;
 }
 
+/* 4. 회차별 Q-Score 뱃지 */
+.munpia-inline-meta-addons .munpia-qscore-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  letter-spacing: -0.2px;
+  cursor: help;
+  transition: opacity 0.15s ease;
+}
+
+.munpia-inline-meta-addons .munpia-qscore-badge:hover {
+  opacity: 0.85;
+}
+
+.munpia-inline-meta-addons .munpia-qscore-badge.q-high {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.munpia-inline-meta-addons .munpia-qscore-badge.q-mid {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+}
+
+.munpia-inline-meta-addons .munpia-qscore-badge.q-low {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #ea580c;
+}
+
 
 /* ============================================================
    2. 작품 상단 조회수/구매수 분리 라인 (작품등록일 아랫줄, 아이콘 없음)
@@ -133,9 +166,10 @@
 }
 
 /* ============================================================
-   3. 작품 상단 출판사 정산 라인 (완전 좌측 정렬 및 들여쓰기)
+   3. 작품 상단 출판사 정산 라인 및 대시보드 카드 레이아웃
    ============================================================ */
 
+/* 기존 인라인 정산 라인 (하위 호환성 유지) */
 .munpia-revenue-summary-line {
   display: flex !important;
   flex-direction: column !important;
@@ -195,9 +229,191 @@
   font-size: 12.5px;
 }
 
+/* ============================================================
+   4. 상단 대시보드 Flex 레이아웃 (정산 카드 + Q-Score 카드)
+   ============================================================ */
+
+.munpia-dashboard-row {
+  display: flex !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+  margin-bottom: 8px !important;
+  flex-wrap: wrap !important;
+  box-sizing: border-box !important;
+}
+
+.munpia-revenue-card,
+.munpia-qscore-card {
+  flex: 1 1 280px !important;
+  min-width: 260px !important;
+  max-width: 480px !important;
+  background-color: #fafafa !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 8px !important;
+  padding: 12px 14px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  font-size: 13px !important;
+  line-height: 19px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+.munpia-revenue-card .card-header,
+.munpia-qscore-card .card-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 8px !important;
+}
+
+.munpia-revenue-card .card-title,
+.munpia-qscore-card .card-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #52525b !important;
+}
+
+/* 정산 카드 내부 */
+.munpia-revenue-card .rev-card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.munpia-revenue-card .rev-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  font-size: 12.5px !important;
+}
+
+.munpia-revenue-card .rev-label {
+  color: #71717a !important;
+  width: 50px !important;
+}
+
+.munpia-revenue-card .rev-value {
+  color: #27272a !important;
+  font-weight: 500 !important;
+}
+
+.munpia-revenue-card .rev-net {
+  color: #16a34a !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+.munpia-revenue-card .rev-tax-note {
+  font-size: 11px !important;
+  color: #a1a1aa !important;
+  margin-top: 6px !important;
+  display: block !important;
+}
+
+/* Q-Score 카드 내부 */
+.munpia-qscore-card .qscore-track-badge {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+  letter-spacing: -0.2px !important;
+}
+
+.munpia-qscore-card .qscore-track-badge.track-b {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+.munpia-qscore-card .qscore-track-badge.track-a {
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+.munpia-qscore-card .qscore-track-badge.track-loading {
+  background-color: #f4f4f5 !important;
+  color: #71717a !important;
+  border: 1px solid #e4e4e7 !important;
+}
+
+.munpia-qscore-card .qscore-main-display {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 6px !important;
+  margin-bottom: 8px !important;
+}
+
+.munpia-qscore-card .qscore-value {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+.munpia-qscore-card .qscore-value.score-high {
+  color: #22c55e !important;
+}
+
+.munpia-qscore-card .qscore-value.score-mid {
+  color: #3b82f6 !important;
+}
+
+.munpia-qscore-card .qscore-value.score-low {
+  color: #f97316 !important;
+}
+
+.munpia-qscore-card .qscore-max {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #a1a1aa !important;
+}
+
+.munpia-qscore-card .qscore-sub-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 6px 12px !important;
+  background-color: #f4f4f5 !important;
+  padding: 8px 10px !important;
+  border-radius: 6px !important;
+  font-size: 11.5px !important;
+}
+
+.munpia-qscore-card .qscore-sub-item {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.munpia-qscore-card .qscore-sub-item.qscore-sample-range {
+  grid-column: span 2 !important;
+  border-top: 1px dashed #e4e4e7 !important;
+  padding-top: 5px !important;
+  margin-top: 2px !important;
+}
+
+.munpia-qscore-card .sub-label {
+  color: #71717a !important;
+}
+
+.munpia-qscore-card .sub-value {
+  font-weight: 600 !important;
+  color: #27272a !important;
+}
+
+.munpia-qscore-card .qscore-empty-text {
+  color: #a1a1aa !important;
+  font-size: 12px !important;
+}
 
 /* ============================================================
-   4. 문피아 다크모드 대응
+   5. 문피아 다크모드 대응
    ============================================================ */
 
 [data-theme="dark"] .munpia-inline-meta-addons {
@@ -235,6 +451,22 @@
   color: #4ade80;
 }
 
+/* Q-Score 인라인 뱃지 다크모드 */
+[data-theme="dark"] .munpia-inline-meta-addons .munpia-qscore-badge.q-high {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+[data-theme="dark"] .munpia-inline-meta-addons .munpia-qscore-badge.q-mid {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .munpia-inline-meta-addons .munpia-qscore-badge.q-low {
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #fb923c;
+}
+
 [data-theme="dark"] .munpia-clean-summary-line {
   color: #a1a1aa;
 }
@@ -259,28 +491,75 @@
   color: #52525b;
 }
 
-/* 다크모드: 추정 수익 라인 */
-[data-theme="dark"] .munpia-revenue-summary-line {
-  color: #a1a1aa;
+/* 다크모드: 대시보드 카드 */
+[data-theme="dark"] .munpia-revenue-card,
+[data-theme="dark"] .munpia-qscore-card {
+  background-color: #1e1e24 !important;
+  border-color: #2e2e38 !important;
 }
 
-[data-theme="dark"] .munpia-revenue-summary-line .rev-line.rev-title {
-  color: #d4d4d8;
+[data-theme="dark"] .munpia-revenue-card .card-title,
+[data-theme="dark"] .munpia-qscore-card .card-title {
+  color: #d4d4d8 !important;
 }
 
-[data-theme="dark"] .munpia-revenue-summary-line .rev-label {
-  color: #a1a1aa;
+[data-theme="dark"] .munpia-revenue-card .rev-label,
+[data-theme="dark"] .munpia-qscore-card .sub-label {
+  color: #a1a1aa !important;
 }
 
-[data-theme="dark"] .munpia-revenue-summary-line .rev-value {
-  color: #e4e4e7;
+[data-theme="dark"] .munpia-revenue-card .rev-value,
+[data-theme="dark"] .munpia-qscore-card .sub-value {
+  color: #e4e4e7 !important;
 }
 
-[data-theme="dark"] .munpia-revenue-summary-line .rev-value.highlight-gold {
-  color: #fbbf24;
+[data-theme="dark"] .munpia-revenue-card .rev-net {
+  color: #4ade80 !important;
 }
 
-[data-theme="dark"] .munpia-revenue-summary-line .rev-net {
-  color: #4ade80;
+[data-theme="dark"] .munpia-revenue-card .rev-tax-note {
+  color: #71717a !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-track-badge.track-b {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  color: #60a5fa !important;
+  border-color: #3b82f6 !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-track-badge.track-a {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border-color: #10b981 !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-track-badge.track-loading {
+  background-color: #27272a !important;
+  color: #71717a !important;
+  border-color: #3f3f46 !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-sub-metrics {
+  background-color: #27272a !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-sub-item.qscore-sample-range {
+  border-top-color: #3f3f46 !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-value.score-high {
+  color: #4ade80 !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-value.score-mid {
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-value.score-low {
+  color: #fb923c !important;
+}
+
+[data-theme="dark"] .munpia-qscore-card .qscore-max {
+  color: #71717a !important;
 }
 

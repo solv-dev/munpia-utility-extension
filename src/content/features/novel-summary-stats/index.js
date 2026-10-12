@@ -185,31 +185,55 @@ export class NovelSummaryStatsFeature extends BaseFeature {
       targetRow.insertAdjacentElement('afterend', newLine);
     }
 
-    // 9. [출판사 정산 라인] 주입 (조회수/구매수/매출/플랫폼수수료 행 바로 아랫줄)
+    // 9. [대시보드 행: 출판사 정산 카드 + 작품 퀄리티 대시보드 카드] Flex 레이아웃 주입
     const insertedStatLine = targetRow.nextElementSibling;
     if (insertedStatLine) {
-      const newRevLine = DomUtils.createRevenueSummaryLine(paidPurchasesSum);
-      const existingRevLine = document.querySelector('[data-munpia-summary="revenue-stats"]');
+      // 전 회차 목록 취득 (DataProvider 또는 화면 배치 데이터 fallback)
+      let allChapters = chapterDataProvider.getAllChapters();
+      if (allChapters.length === 0 && screenBatch.length > 0) {
+        allChapters = screenBatch.map((item) => ({
+          num: item.chapterNumber,
+          hits: item.hits,
+          likes: item.likes,
+          commentCount: item.comments || 0,
+          isPaid: Boolean(item.isPaid),
+          createdAt: item.createdAt || null,
+        }));
+      }
 
-      if (!newRevLine) {
-        if (existingRevLine) existingRevLine.remove();
-      } else {
-        newRevLine.className = 'munpia-revenue-summary-line';
+      // 작품 전체 Q-Score 산출
+      const qTotalData = DomUtils.calculateTotalQScore(allChapters);
 
-        if (existingRevLine) {
-          if (existingRevLine.previousElementSibling === insertedStatLine) {
-            existingRevLine.innerHTML = newRevLine.innerHTML;
-          } else {
-            existingRevLine.remove();
-            insertedStatLine.insertAdjacentElement('afterend', newRevLine);
-          }
-        } else {
-          insertedStatLine.insertAdjacentElement('afterend', newRevLine);
-        }
+      // 카드 생성
+      const revCard = DomUtils.createRevenueCard(paidPurchasesSum);
+      const qCard = DomUtils.createQScoreDashboardCard(qTotalData);
+
+      // 상위 Flex 컨테이너 (.munpia-dashboard-row) 관리
+      let dashboardRow = document.querySelector('[data-munpia-dashboard="row"]');
+      if (!dashboardRow) {
+        dashboardRow = document.createElement('div');
+        dashboardRow.className = 'munpia-dashboard-row';
+        dashboardRow.setAttribute('data-munpia-dashboard', 'row');
+      }
+
+      dashboardRow.innerHTML = '';
+      if (revCard) {
+        dashboardRow.appendChild(revCard);
+      }
+      if (qCard) {
+        dashboardRow.appendChild(qCard);
+      }
+
+      // 이전 버전의 단독 정산 라인이 남아있다면 정리
+      const oldRevLine = document.querySelector('[data-munpia-summary="revenue-stats"]');
+      if (oldRevLine) oldRevLine.remove();
+
+      if (dashboardRow.parentElement !== insertedStatLine.parentElement || dashboardRow.previousElementSibling !== insertedStatLine) {
+        insertedStatLine.insertAdjacentElement('afterend', dashboardRow);
       }
     }
 
-    console.log('[Munpia Utility] 상단 무료 조회수/유료 구매수 및 추정 수익 표시 완료:', {
+    console.log('[Munpia Utility] 상단 무료/유료 집계 및 대시보드(정산+Q-Score) 표시 완료:', {
       freeHitsSum,
       paidPurchasesSum,
     });
@@ -221,6 +245,8 @@ export class NovelSummaryStatsFeature extends BaseFeature {
     }
     const line = document.querySelector('[data-munpia-summary="clean-stats"]');
     if (line) line.remove();
+    const dashboardRow = document.querySelector('[data-munpia-dashboard="row"]');
+    if (dashboardRow) dashboardRow.remove();
     const revLine = document.querySelector('[data-munpia-summary="revenue-stats"]');
     if (revLine) revLine.remove();
     this.lastRenderedKey = '';

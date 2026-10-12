@@ -71,6 +71,8 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
     metaContainers.forEach((metaContainer) => {
       let hits = 0;
       let likes = 0;
+      let comments = 0;
+      let createdAt = null;
       let isPaid = false;
 
       const metaGroups = DomUtils.queryAll('[class*="metaGroup"]', metaContainer);
@@ -88,12 +90,15 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
             likes = DomUtils.parseNumber(text.replace(/좋아요|추천/, ''));
           } else if (text.startsWith('댓글')) {
             commentGroup = group;
+            comments = DomUtils.parseNumber(text.replace('댓글', ''));
+          } else if (/\d{2,4}[./-]\d{1,2}[./-]\d{1,2}/.test(text) || text.includes('시간 전') || text.includes('분 전') || text.includes('방금')) {
+            createdAt = text;
           }
         });
       }
 
+      const fullText = metaContainer.textContent || '';
       if (!hits || !likes) {
-        const fullText = metaContainer.textContent || '';
         const hitMatch = fullText.match(/(?:조회|구매)\s*[:\s]?\s*([0-9,.]+만?천?)/);
         const likeMatch = fullText.match(/(?:좋아요|추천)\s*[:\s]?\s*([0-9,.]+만?천?)/);
         if (hitMatch) {
@@ -101,6 +106,13 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
           if (hitMatch[0].includes('구매')) isPaid = true;
         }
         if (likeMatch) likes = DomUtils.parseNumber(likeMatch[1]);
+      }
+
+      if (!comments) {
+        const commentMatch = fullText.match(/댓글\s*[:\s]?\s*([0-9,.]+만?천?)/);
+        if (commentMatch) {
+          comments = DomUtils.parseNumber(commentMatch[1]);
+        }
       }
 
       // 회차 번호(N) 100% 정밀 파싱:
@@ -131,6 +143,14 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
 
       if (chapterNumber && hits > 0) {
         screenMap.set(chapterNumber, hits);
+        // DataProvider에 화면 메타 동기화
+        chapterDataProvider.updateChapterFromScreen(chapterNumber, {
+          hits,
+          likes,
+          comments,
+          isPaid,
+          createdAt,
+        });
       }
 
       currentBatch.push({
@@ -138,8 +158,10 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
         commentGroup: commentGroup || metaGroups[metaGroups.length - 1],
         hits,
         likes,
+        comments,
         isPaid,
         chapterNumber,
+        createdAt,
       });
     });
 
@@ -164,25 +186,45 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
 
       const ratio = DomUtils.calculateRatio(item.likes, item.hits);
 
-      // 직전 연재분(N - 1화)의 조회수 탐색:
+      // 직전 연재분(N - 1화)의 조회수 및 회차 정보 탐색:
       let prevHits = null;
+      let prevChapter = null;
       if (item.chapterNumber && item.chapterNumber > 1) {
         const targetPrevNum = item.chapterNumber - 1;
 
-        // 1순위: 현재 화면(screenMap)에서 직전 회차(N - 1) 조회 (최신순이든 1화부터든 동일 화면이면 100% 즉시 매핑!)
+        // 1순위: 현재 화면(screenMap)에서 직전 회차(N - 1) 조회 (동일 화면이면 100% 즉시 매핑)
         if (screenMap.has(targetPrevNum)) {
           prevHits = screenMap.get(targetPrevNum);
-        } else {
-          // 2순위: 백그라운드 DataProvider에서 직전 회차(N - 1) 조회 (페이지 경계 회차 커버)
-          const prevChapter = chapterDataProvider.getChapter(targetPrevNum);
-          if (prevChapter && prevChapter.hits > 0) {
-            prevHits = prevChapter.hits;
-          }
+        }
+
+        // 백그라운드 DataProvider에서 직전 회차 정보 보강 (유료 전환 경계 확인 및 hits fallback)
+        prevChapter = chapterDataProvider.getChapter(targetPrevNum);
+        if (!prevHits && prevChapter && prevChapter.hits > 0) {
+          prevHits = prevChapter.hits;
         }
       }
 
       const dropRate = prevHits ? DomUtils.calculateDropRate(item.hits, prevHits) : null;
       const retentionRate = firstChapterHits ? DomUtils.calculateRetentionRate(item.hits, firstChapterHits) : null;
+
+      // 회차별 퀄리티 스코어(Q-Score) 계산
+      const isTransition = item.chapterNumber === 1 ||
+        (item.isPaid && prevChapter && !prevChapter.isPaid) ||
+        !prevHits;
+
+      let effectiveComments = item.comments || 0;
+      const cachedChapter = item.chapterNumber ? chapterDataProvider.getChapter(item.chapterNumber) : null;
+      if (cachedChapter && cachedChapter.commentCount > effectiveComments) {
+        effectiveComments = cachedChapter.commentCount;
+      }
+
+      const qScore = DomUtils.calculateEpisodeQScore({
+        currentHits: item.hits,
+        prevHits,
+        likes: item.likes,
+        comments: effectiveComments,
+        isFirstOrTransition: isTransition,
+      });
 
       // 이미 주입된 요소 검사 및 업데이트
       const existingAddon = item.metaContainer.querySelector('[data-munpia-addon="stats"]');
@@ -194,6 +236,7 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
         dropRate,
         retentionRate,
         firstHits: firstChapterHits,
+        qScore,
       });
 
       if (existingAddon) {
