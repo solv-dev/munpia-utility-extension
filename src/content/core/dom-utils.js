@@ -74,9 +74,10 @@ export const DomUtils = {
    * @param {boolean} [data.isPaid=false] - 유료 여부
    * @param {number|null} [data.dropRate=null] - 직전 대비 이탈률
    * @param {number|null} [data.retentionRate=null] - 1화 대비 잔존율
+   * @param {number|null} [data.firstHits=null] - 1화 조회수
    * @returns {HTMLElement}
    */
-  createInlineMetaAddons({ ratio, likes, hits, isPaid = false, dropRate = null, retentionRate = null }) {
+  createInlineMetaAddons({ ratio, likes, hits, isPaid = false, dropRate = null, retentionRate = null, firstHits = null }) {
     const wrapper = document.createElement('span');
     wrapper.className = 'munpia-inline-meta-addons';
     wrapper.setAttribute('data-munpia-addon', 'stats');
@@ -97,17 +98,26 @@ export const DomUtils = {
     // 2. 이탈률 (직전 대비)
     if (dropRate !== null) {
       const sign = dropRate > 0 ? '+' : '';
-      let retText = '';
-      if (retentionRate !== null) {
-        retText = `\n1화 대비 잔존: ${retentionRate.toFixed(1)}% (누적 이탈: ${(100 - retentionRate).toFixed(1)}%)`;
-      }
-      const dropTooltip = `직전 회차 대비 증감: ${sign}${dropRate.toFixed(2)}%${retText}`;
+      const dropTooltip = `직전 회차 대비 증감: ${sign}${dropRate.toFixed(2)}%`;
       const dropColorClass = dropRate < 0 ? 'drop-neg' : 'drop-pos';
 
       html += `
         <span class="munpia-meta-item ${dropColorClass}" title="${dropTooltip}">
           <span class="meta-label">이탈률</span>
           <span class="meta-value">${sign}${dropRate.toFixed(2)}%</span>
+        </span>
+      `;
+    }
+
+    // 3. 1화 조회수 대비 비율 (연독 잔존율)
+    if (retentionRate !== null) {
+      const firstHitInfo = firstHits ? ` (1화: ${Number(firstHits).toLocaleString()}회)` : '';
+      const retentionTooltip = `1화 조회수 대비 잔존율: ${retentionRate.toFixed(2)}%${firstHitInfo} | 누적 이탈: ${(100 - retentionRate).toFixed(2)}%`;
+
+      html += `
+        <span class="munpia-meta-item" title="${retentionTooltip}">
+          <span class="meta-label">1화대비</span>
+          <span class="meta-value">${retentionRate.toFixed(2)}%</span>
         </span>
       `;
     }

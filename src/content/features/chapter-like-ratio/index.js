@@ -150,7 +150,12 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
     const stats = chapterDataProvider.getStats();
     let firstChapterHits = stats.firstChapterHits;
     if (!firstChapterHits) {
-      if (screenMap.has(1)) firstChapterHits = screenMap.get(1);
+      const ch1 = chapterDataProvider.getChapter(1);
+      if (ch1 && ch1.hits > 0) {
+        firstChapterHits = ch1.hits;
+      } else if (screenMap.has(1)) {
+        firstChapterHits = screenMap.get(1);
+      }
     }
 
     // 2단계: 각 회차별 이탈률 산출 및 뱃지 인라인 주입
@@ -188,6 +193,7 @@ export class ChapterAnalyticsRowFeature extends BaseFeature {
         isPaid: item.isPaid,
         dropRate,
         retentionRate,
+        firstHits: firstChapterHits,
       });
 
       if (existingAddon) {
