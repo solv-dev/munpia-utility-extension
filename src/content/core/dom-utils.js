@@ -86,43 +86,55 @@ export const DomUtils = {
     const formattedLikes = Number(likes).toLocaleString('ko-KR');
     const label = isPaid ? '구매수' : '조회수';
 
-    // 1. 비율 (좋아요/조회수)
-    const ratioTooltip = `${label}: ${formattedHits}회 | 좋아요: ${formattedLikes}개 | 반응률: ${ratio.toFixed(2)}%`;
-    let html = `
-      <span class="munpia-meta-item" title="${ratioTooltip}">
-        <span class="meta-label">비율</span>
+    const items = [];
+
+    // 1. 좋아요 반응률 (하트 아이콘)
+    const ratioTooltip = `[좋아요 반응률]\n${label}: ${formattedHits}회\n좋아요: ${formattedLikes}개\n반응률: ${ratio.toFixed(2)}%`;
+    const heartIcon = `<svg class="addon-icon icon-heart" viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+
+    items.push(`
+      <span class="munpia-meta-item item-ratio" title="${ratioTooltip}">
+        ${heartIcon}
         <span class="meta-value">${ratio.toFixed(2)}%</span>
       </span>
-    `;
+    `);
 
-    // 2. 이탈률 (직전 대비)
+    // 2. 직전 대비 이탈률 (트렌드 화살표 아이콘)
     if (dropRate !== null) {
       const sign = dropRate > 0 ? '+' : '';
-      const dropTooltip = `직전 회차 대비 증감: ${sign}${dropRate.toFixed(2)}%`;
-      const dropColorClass = dropRate < 0 ? 'drop-neg' : 'drop-pos';
+      const dropTooltip = `[직전 회차 대비 증감]\n이탈률: ${sign}${dropRate.toFixed(2)}%`;
+      const isNeg = dropRate < 0;
+      const dropColorClass = isNeg ? 'drop-neg' : 'drop-pos';
 
-      html += `
+      const trendIcon = isNeg
+        ? `<svg class="addon-icon icon-trend" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>`
+        : `<svg class="addon-icon icon-trend" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`;
+
+      items.push(`
         <span class="munpia-meta-item ${dropColorClass}" title="${dropTooltip}">
-          <span class="meta-label">이탈률</span>
+          ${trendIcon}
           <span class="meta-value">${sign}${dropRate.toFixed(2)}%</span>
         </span>
-      `;
+      `);
     }
 
-    // 3. 1화 조회수 대비 비율 (연독 잔존율)
+    // 3. 1화 조회수 대비 비율 (타깃/과녁 아이콘)
     if (retentionRate !== null) {
-      const firstHitInfo = firstHits ? ` (1화: ${Number(firstHits).toLocaleString()}회)` : '';
-      const retentionTooltip = `1화 조회수 대비 잔존율: ${retentionRate.toFixed(2)}%${firstHitInfo} | 누적 이탈: ${(100 - retentionRate).toFixed(2)}%`;
+      const firstHitInfo = firstHits ? `\n1화 조회수: ${Number(firstHits).toLocaleString()}회` : '';
+      const retentionTooltip = `[1화 대비 연독률]${firstHitInfo}\n잔존율: ${retentionRate.toFixed(2)}%\n누적 이탈: ${(100 - retentionRate).toFixed(2)}%`;
 
-      html += `
-        <span class="munpia-meta-item" title="${retentionTooltip}">
-          <span class="meta-label">1화대비</span>
+      const targetIcon = `<svg class="addon-icon icon-target" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`;
+
+      items.push(`
+        <span class="munpia-meta-item item-retention" title="${retentionTooltip}">
+          ${targetIcon}
           <span class="meta-value">${retentionRate.toFixed(2)}%</span>
         </span>
-      `;
+      `);
     }
 
-    wrapper.innerHTML = html;
+    // 세 수치를 구분자선과 함께 하나의 단일 틀 안에 조립
+    wrapper.innerHTML = items.join('<span class="addon-divider"></span>');
     return wrapper;
   },
 
