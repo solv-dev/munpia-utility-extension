@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "source": "Munpia Today Best & Golden Best Baseline Parameters",
+  "generatedAt": "2026-10-12T00:00:00Z",
+  "freeModel": {
+    "fav": {
+      "description": "무료 연재작 선호작 모수 (Hill 성장 모델: mu_base + delta_mu * (N^k / (N^k + n50^k)))",
+      "mu_base": 2.85,
+      "delta_mu": 5.40,
+      "k": 1.45,
+      "n50": 12.0,
+      "sigma": 0.82
+    },
+    "hits": {
+      "description": "무료 연재작 회당 평균 조회수 모수",
+      "mu_base": 6.20,
+      "delta_mu": 3.80,
+      "k": 1.20,
+      "n50": 10.0,
+      "sigma": 0.75
+    }
+  },
+  "paidModel": {
+    "purchases": {
+      "description": "유료 연재작 편당 평균 구매수 모수 (시장 중위 1,000~1,500회 기준)",
+      "mu_base": 5.80,
+      "delta_mu": 1.40,
+      "k": 1.20,
+      "n50": 40.0,
+      "sigma": 0.75
+    },
+    "revenue": {
+      "description": "유료 연재작 총 누적 매출(원) 모수 (시장 중위 2,000~2,500만 원 기준)",
+      "mu_base": 13.50,
+      "delta_mu": 3.50,
+      "k": 1.30,
+      "n50": 50.0,
+      "sigma": 0.85
+    }
+  }
+}
+

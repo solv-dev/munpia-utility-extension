@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>문피아 시장 표본 평가 랭킹 및 벤치마크 대시보드</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-title-area">
+        <h1>
+          <span>🏆 문피아 시장 표본 평가 랭킹 리더보드</span>
+          <span class="header-badge" id="data-date-badge">2026.10.12 기준</span>
+        </h1>
+        <p class="header-subtitle">
+          실제 문피아 베스트 랭킹 표본 데이터의 화수별 통계 분포(Log-Normal Z-Score)를 바탕으로 모든 표본을 줄 세워 다각도로 평가합니다.
+        </p>
+      </div>
+      <div class="header-actions">
+        <button id="theme-toggle-btn" class="theme-toggle-btn">🌙 다크 모드</button>
+      </div>
+    </header>
+
+    <!-- KPI Summary Grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">수집 표본 규모</span>
+        <span class="kpi-value" id="kpi-sample-count">-</span>
+        <span class="kpi-desc">무료 투베 및 유료 베스트 랭킹 표본</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">무료 투베 1위 컷 (20~25화)</span>
+        <span class="kpi-value" id="kpi-free-top-cut">-</span>
+        <span class="kpi-desc">선호작 1.1만+ / 평균 조회 1.2만+</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">유료 메가히트 컷 (150화+)</span>
+        <span class="kpi-value" id="kpi-paid-top-cut">-</span>
+        <span class="kpi-desc">평균 구매 1만+ / 누적 매출 1.3억+</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">표본 평균 Q-Score</span>
+        <span class="kpi-value" id="kpi-avg-score">-</span>
+        <span class="kpi-desc">전체 베스트 표본 종합 점수 평균</span>
+      </div>
+    </section>
+
+    <!-- Interactive Novel Simulator -->
+    <section class="simulator-panel">
+      <div class="simulator-header">
+        <h2>⚡ 내 작품 즉석 시장 위치 판정 시뮬레이터</h2>
+        <span class="header-badge">실시간 판정</span>
+      </div>
+      <div class="simulator-body">
+        <div class="sim-input-group">
+          <label for="sim-chapters">연재 화수 (N)</label>
+          <input type="number" id="sim-chapters" value="1" min="1" max="500">
+        </div>
+        <div class="sim-input-group">
+          <label for="sim-is-paid">연재 유형</label>
+          <select id="sim-is-paid">
+            <option value="false" selected>무료 연재작</option>
+            <option value="true">유료 연재작</option>
+          </select>
+        </div>
+        <div class="sim-input-group">
+          <label for="sim-main-val" id="sim-main-label">선호작 수 (명)</label>
+          <input type="number" id="sim-main-val" value="300" min="0">
+        </div>
+        <div class="sim-input-group">
+          <label for="sim-sub-val" id="sim-sub-label">평균 조회수 (회)</label>
+          <input type="number" id="sim-sub-val" value="2500" min="0">
+        </div>
+        <button id="sim-run-btn" class="sim-run-btn">판정하기</button>
+      </div>
+      <div class="sim-result-box" id="sim-result-box">
+        <div>
+          <span>시뮬레이션 판정 결과: </span>
+          <span class="sim-result-main" id="sim-result-score">Q 95.4점 [S급]</span>
+          <span style="margin-left: 10px; color: var(--text-secondary);" id="sim-result-percentile">1화 기준 상위 0.3% (전체 표본 중 1위권 수준)</span>
+        </div>
+        <span class="type-badge type-free" id="sim-result-scale">체급: 40.4 / 45</span>
+      </div>
+    </section>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+      <div class="filter-tabs">
+        <button class="tab-btn active" data-filter="all">전체 통합 (<span id="count-all">0</span>)</button>
+        <button class="tab-btn" data-filter="free">무료 투베 (<span id="count-free">0</span>)</button>
+        <button class="tab-btn" data-filter="paid">유료 투베 (<span id="count-paid">0</span>)</button>
+        <button class="tab-btn" data-filter="bestseller">베스트셀러 (<span id="count-bestseller">0</span>)</button>
+      </div>
+      <div class="search-and-sort">
+        <input type="text" id="search-input" class="search-input" placeholder="작품명 / 작가 검색...">
+        <select id="sort-select" class="sort-select">
+          <option value="qscore_desc" selected>🏆 종합 Q-Score 높은 순</option>
+          <option value="todayviews_desc">🔥 당일 조회수 높은 순</option>
+          <option value="scale_desc">💰 상업 체급(Pillar 1) 순</option>
+          <option value="retention_desc">🛡️ 연독 방어(Pillar 2) 순</option>
+          <option value="loyalty_desc">❤️ 독자 반응(Pillar 3) 순</option>
+          <option value="fav_desc">⭐ 선호작 많은 순</option>
+          <option value="chapters_desc">🔢 화수 많은 순</option>
+          <option value="chapters_asc">🆕 최신 신작(적은 화수) 순</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Leaderboard Table -->
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th style="width: 50px; text-align: center;">순위</th>
+              <th>작품 정보</th>
+              <th>화수 / 유형</th>
+              <th>종합 Q-Score</th>
+              <th>상업 체급 (45점)</th>
+              <th>연독 방어 (35점)</th>
+              <th>독자 반응 (20점)</th>
+              <th>핵심 원천 지표</th>
+              <th style="text-align: center;">바로가기</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-tbody">
+            <!-- Dynamic Rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer class="footer-note">
+      <p>※ 본 리더보드는 문피아 플랫폼 공개 랭킹 표본을 바탕으로 실제 시장 통계 모수(Log-Normal Distribution)를 적용하여 산출된 객관적 순위입니다.</p>
+    </footer>
+  </div>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>
+

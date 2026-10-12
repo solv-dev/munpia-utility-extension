@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "문피아 작품 분석 유틸리티 (Munpia Utility)",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "문피아 작품 분석을 위한 유틸리티 확장 프로그램 (작품 종합 퀄리티 Q-Score, 회차별 Q-Score, 인라인 반응률/이탈률/연독률, 추정 매출/작가 정산액 분석)",
   "permissions": [
     "storage"
@@ -34,9 +34,11 @@
       "resources": [
         "src/content/*",
         "src/content/core/*",
+        "src/content/data/*",
         "src/content/features/*",
         "src/content/features/chapter-like-ratio/*",
-        "src/content/features/novel-summary-stats/*"
+        "src/content/features/novel-summary-stats/*",
+        "src/dashboard/*"
       ],
       "matches": [
         "*://*.munpia.com/*",

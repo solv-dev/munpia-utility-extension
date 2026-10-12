@@ -63,18 +63,37 @@ export class NovelSummaryStatsFeature extends BaseFeature {
       });
     }
 
-    // 3. 상단 메타에서 전체 '조회수' 총합 파싱 (예: "조회수 1,178,981")
+    // 3. 상단 메타에서 전체 '조회수', '좋아요', '선호작', '등록일' 등 추출
     let totalHeaderViews = 0;
-    // infoRows 컨테이너나 상단 메타 전체 영역에서 '조회수' 추출
+    let headerLikes = 0;
+    let headerFavorites = 0;
+    let headerRegDate = null;
+    let headerRecentDate = null;
+
     const topMetaCandidates = DomUtils.queryAll('[class*="infoRows"], [class*="detailInfo"], [class*="info_detail"], [class*="detail_section"], div');
     for (const el of topMetaCandidates) {
       const text = el.textContent || '';
-      if (text.includes('조회수') && text.length < 500) {
+      if (text.length > 500) continue;
+
+      if (text.includes('조회수') && !totalHeaderViews) {
         const m = text.match(/조회수\s*[:\s]?\s*([0-9,.]+만?천?)/);
-        if (m) {
-          totalHeaderViews = DomUtils.parseNumber(m[1]);
-          if (totalHeaderViews > 0) break;
-        }
+        if (m) totalHeaderViews = DomUtils.parseNumber(m[1]);
+      }
+      if ((text.includes('좋아요') || text.includes('추천')) && !headerLikes) {
+        const m = text.match(/(?:좋아요|추천)\s*[:\s]?\s*([0-9,.]+만?천?)/);
+        if (m) headerLikes = DomUtils.parseNumber(m[1]);
+      }
+      if (text.includes('선호작') && !headerFavorites) {
+        const m = text.match(/선호작\s*[:\s]?\s*([0-9,.]+만?천?)/);
+        if (m) headerFavorites = DomUtils.parseNumber(m[1]);
+      }
+      if (text.includes('작품등록일') && !headerRegDate) {
+        const m = text.match(/작품등록일\s*[:\s]?\s*([0-9.]+)/);
+        if (m) headerRegDate = m[1];
+      }
+      if (text.includes('최근연재일') && !headerRecentDate) {
+        const m = text.match(/최근연재일\s*[:\s]?\s*([0-9.]+)/);
+        if (m) headerRecentDate = m[1];
       }
     }
 
@@ -96,7 +115,7 @@ export class NovelSummaryStatsFeature extends BaseFeature {
     }
 
     // 4. 깜빡임 방지: 이전 렌더링 값과 동일하면 DOM 조작 건너뜀
-    const currentKey = `${freeHitsSum}_${paidPurchasesSum}`;
+    const currentKey = `${freeHitsSum}_${paidPurchasesSum}_${headerFavorites}_${headerLikes}`;
     const existingLine = document.querySelector('[data-munpia-summary="clean-stats"]');
 
     if (existingLine && this.lastRenderedKey === currentKey) {
@@ -201,8 +220,17 @@ export class NovelSummaryStatsFeature extends BaseFeature {
         }));
       }
 
-      // 작품 전체 Q-Score 산출
-      const qTotalData = DomUtils.calculateTotalQScore(allChapters);
+      // 작품 전체 Market Power Q-Score 산출
+      const qTotalData = DomUtils.calculateTotalQScore(allChapters, {
+        paidPurchasesSum,
+        freeHitsSum,
+        favorites: headerFavorites,
+        totalLikes: headerLikes,
+        totalViews: totalHeaderViews,
+        totalChapters: stats.totalChapters || allChapters.length,
+        regDate: headerRegDate,
+        recentDate: headerRecentDate,
+      });
 
       // 카드 생성
       const revCard = DomUtils.createRevenueCard(paidPurchasesSum);
@@ -221,6 +249,16 @@ export class NovelSummaryStatsFeature extends BaseFeature {
         dashboardRow.appendChild(revCard);
       }
       if (qCard) {
+        const openBtn = qCard.querySelector('.qscore-open-dashboard-btn');
+        if (openBtn) {
+          openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+              chrome.runtime.sendMessage({ action: 'open_market_dashboard' });
+            }
+          });
+        }
         dashboardRow.appendChild(qCard);
       }
 

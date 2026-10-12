@@ -1,3 +1,5 @@
+import { marketBenchmark } from './market-benchmark.js';
+
 /**
  * DomUtils
  * DOM 탐색, 안전한 쿼리, 텍스트/숫자 파싱, 이탈률/비율 계산 및 뱃지 생성을 위한 공통 유틸리티 모음입니다.
@@ -128,116 +130,209 @@ export const DomUtils = {
   },
 
   /**
-   * [작품 전체 퀄리티 지수 Q_total 산출]
-   * 유료 회차 수에 따라 Track B(유료 안정화) 또는 Track A(무료 기반)로 분기 계산합니다.
+   * [작품 종합 파워 지수 (Market Power Q-Score) 산출]
+   * 상업적 체급(45점) + 연독 지속력/흡입력(35점) + 독자 충성도/반응(20점) = 100점 만점
    * @param {Array<Object>} chaptersList
+   * @param {Object} [meta={}] - 작품 상단 메타 (선호작, 총조회수, 총좋아요, 정산합계 등)
    * @returns {Object}
    */
-  calculateTotalQScore(chaptersList) {
+  calculateTotalQScore(chaptersList, meta = {}) {
     if (!Array.isArray(chaptersList) || chaptersList.length === 0) {
       return { valid: false, score: 0 };
     }
 
-    const sortedChapters = [...chaptersList].sort((a, b) => a.num - b.num);
+    const normalizedChapters = chaptersList.map((ch) => ({
+      ...ch,
+      num: ch.num ?? ch.chapterNumber ?? 0,
+      commentCount: ch.commentCount ?? ch.comments ?? 0,
+    }));
+    const sortedChapters = [...normalizedChapters].sort((a, b) => a.num - b.num);
     const paidChapters = sortedChapters.filter((ch) => ch.isPaid && ch.hits > 0);
+    const freeChapters = sortedChapters.filter((ch) => !ch.isPaid && ch.hits > 0);
 
-    // Track B: 유료 회차 10개 이상 (유료 안정화 분석)
-    if (paidChapters.length >= 10) {
+    const paidCount = paidChapters.length;
+    const isPaidNovel = paidCount >= 10;
+    const isTransNovel = paidCount > 0 && paidCount < 10;
+    const isFreeNovel = paidCount === 0;
+
+    const favorites = meta.favorites || 0;
+    const totalRevenue = (meta.paidPurchasesSum || paidChapters.reduce((acc, c) => acc + c.hits, 0)) * 100;
+    const avgPurchases = paidCount > 0 ? (totalRevenue / 100) / paidCount : 0;
+    const avgFreeHits = freeChapters.length > 0 ? (freeChapters.reduce((acc, c) => acc + c.hits, 0) / freeChapters.length) : (meta.freeHitsSum || 0);
+
+    // ========================================================
+    // 1. [기둥 1] 상업 체급 점수 (Scale Power - 45점 만점, 시장 분포 모수 연동)
+    // ========================================================
+    const totalChaptersCount = meta.totalChapters || sortedChapters.length;
+    const scaleEval = marketBenchmark.evaluateScalePower({
+      isPaid: isPaidNovel,
+      favorites,
+      avgFreeHits,
+      avgPurchases,
+      totalRevenue,
+      totalChapters: totalChaptersCount,
+      paidChaptersCount: paidCount,
+    });
+
+    const pillar1 = scaleEval.score;
+    const scaleLabel = scaleEval.label;
+
+    // ========================================================
+    // 2. [기둥 2] 연독 지속력 & 흡입력 (전체 생애주기 1화 ~ 최신화 - 35점 만점)
+    // ========================================================
+    let pillar2 = 0;
+    let r = 0.985;
+
+    // 연재 속도(연참) 보너스 계산용
+    let velocityBonus = 0;
+
+    if (isPaidNovel) {
       // 48시간 이내 회차는 버퍼로 제외 (단, 최소 2개 이상의 표본이 남아야 함)
       const bufferFiltered = paidChapters.filter((ch) => !this.isWithin48Hours(ch.createdAt));
       const targetPaid = bufferFiltered.length >= 2 ? bufferFiltered : paidChapters;
 
-      const M = targetPaid.length;
-      const K = Math.min(20, Math.max(1, M - 1));
-      const endChapter = targetPaid[targetPaid.length - 1];
-      const startChapter = targetPaid[targetPaid.length - 1 - K];
+      const firstPaid = paidChapters[0];
+      const latestPaid = targetPaid[targetPaid.length - 1];
+      const paidSteps = Math.max(1, latestPaid.num - firstPaid.num);
 
-      const vEnd = endChapter.hits;
-      const vStart = startChapter.hits;
-
-      // 잔존율 점수 r = (V_ne / V_ns)^(1/K)
-      let r = 0.990;
-      if (vStart > 0 && vEnd > 0) {
-        r = Math.pow(vEnd / vStart, 1 / K);
+      // 1) 유료 전 구간(첫 유료화 ~ 최신 유료화)의 회당 평균 유지율
+      let r_paid = 0.985;
+      if (firstPaid.hits > 0 && latestPaid.hits > 0) {
+        r_paid = Math.pow(latestPaid.hits / firstPaid.hits, 1 / paidSteps);
       }
-      const S_ret = this.clamp((r - 0.990) / (1.000 - 0.990), 0, 1) * 100;
 
-      // 윈도우 구간 회차들: startChapter ~ endChapter
-      const windowChapters = targetPaid.slice(targetPaid.length - 1 - K);
-      const likeRatios = windowChapters.map((ch) => (ch.hits > 0 ? ch.likes / ch.hits : 0));
-      const commentRatios = windowChapters.map((ch) => (ch.hits > 0 ? (ch.commentCount || 0) / ch.hits : 0));
+      // 2) 무료 전 구간(1화 ~ 마지막 무료화)의 회당 평균 유지율
+      let r_free = 0.970;
+      if (freeChapters.length >= 2) {
+        const firstFree = freeChapters[0];
+        const lastFree = freeChapters[freeChapters.length - 1];
+        const freeSteps = Math.max(1, lastFree.num - firstFree.num);
+        if (firstFree.hits > 0 && lastFree.hits > 0) {
+          r_free = Math.pow(lastFree.hits / firstFree.hits, 1 / freeSteps);
+        }
+      }
 
-      const EL = this.calculateMedian(likeRatios);
-      const EC = this.calculateMedian(commentRatios);
+      // 3) 전체 생애주기 통합 회당 유지율 (유료 비중 85% + 무료 비중 15%)
+      r = freeChapters.length >= 2 ? (0.85 * r_paid + 0.15 * r_free) : r_paid;
 
-      const S_like = this.clamp((EL - 0.03) / (0.08 - 0.03), 0, 1) * 100;
-      const S_comment = this.clamp((EC - 0.002) / (0.008 - 0.002), 0, 1) * 100;
+      // 연재 속도 보정 (전체 유료 연재 기간 대비 화수 밀도)
+      const tStart = this.parseDateMs(firstPaid.createdAt);
+      const tEnd = this.parseDateMs(latestPaid.createdAt);
+      if (tStart && tEnd && tEnd > tStart) {
+        const daysDiff = (tEnd - tStart) / (1000 * 60 * 60 * 24);
+        const daysPerEp = daysDiff / paidSteps;
+        if (daysPerEp <= 0.6) velocityBonus = 2.5; // 1일 2화+ 초고속 연참
+        else if (daysPerEp <= 1.1) velocityBonus = 1.0; // 성실 일일연재
+      }
 
-      const Q_total = this.clamp(0.60 * S_ret + 0.25 * S_like + 0.15 * S_comment, 0, 100);
+      // 회당 92%~100% 방어율을 0~100점으로 정규화 (절대 0점 클리프 없음)
+      const S_ret = 100 * this.clamp((r - 0.920) / (1.000 - 0.920), 0, 1);
+      pillar2 = this.clamp(0.35 * S_ret + velocityBonus, 0, 35);
+    } else {
+      // 무료 연재작 (1화 ~ 최신 무료화 전체)
+      const bufferFilteredFree = freeChapters.filter((ch) => !this.isWithin48Hours(ch.createdAt));
+      const targetFree = bufferFilteredFree.length >= 2 ? bufferFilteredFree : freeChapters;
 
-      return {
-        valid: true,
-        score: Math.round(Q_total * 10) / 10,
-        track: 'B',
-        trackLabel: '유료 표준',
-        retentionRate: r,
-        retentionScore: S_ret,
-        medianLikeRatio: EL,
-        likeScore: S_like,
-        medianCommentRatio: EC,
-        commentScore: S_comment,
-        sampleRangeLabel: `최근 ${startChapter.num}화 ~ ${endChapter.num}화 기준`,
-      };
+      const firstFree = targetFree[0];
+      const latestFree = targetFree[targetFree.length - 1];
+      const freeSteps = Math.max(1, latestFree.num - firstFree.num);
+
+      if (firstFree.hits > 0 && latestFree.hits > 0) {
+        r = Math.pow(latestFree.hits / firstFree.hits, 1 / freeSteps);
+      }
+
+      const S_ret_free = 100 * this.clamp((r - 0.900) / (1.000 - 0.900), 0, 1);
+      pillar2 = this.clamp(0.35 * S_ret_free, 0, 35);
     }
 
-    // Track A: 유료 10개 미만 (무료 기반 분석)
-    const freeChapters = sortedChapters.filter((ch) => !ch.isPaid && ch.hits > 0);
-    if (freeChapters.length === 0) {
-      return { valid: false, score: 0 };
-    }
+    // ========================================================
+    // 3. [기둥 3] 독자 활성도 & 충성도 (전체 회차 기준 - 20점 만점)
+    // ========================================================
+    const allValidChapters = isPaidNovel ? paidChapters : freeChapters;
+    const likeRatios = allValidChapters.map((ch) => (ch.hits > 0 ? ch.likes / ch.hits : 0));
+    const commentRatios = allValidChapters.map((ch) => (ch.hits > 0 ? (ch.commentCount || 0) / ch.hits : 0));
 
-    const bufferFilteredFree = freeChapters.filter((ch) => !this.isWithin48Hours(ch.createdAt));
-    const targetFree = bufferFilteredFree.length >= 2 ? bufferFilteredFree : freeChapters;
-
-    // 분석 구간: 무료 20화 ~ 45화 (또는 유효한 최신 무료화)
-    let windowChapters = targetFree.filter((ch) => ch.num >= 20 && ch.num <= 45);
-    if (windowChapters.length < 2) {
-      windowChapters = targetFree;
-    }
-
-    const startChapter = windowChapters[0];
-    const endChapter = windowChapters[windowChapters.length - 1];
-    const step = Math.max(1, endChapter.num - startChapter.num);
-
-    let r_free = 0.970;
-    if (startChapter.hits > 0 && endChapter.hits > 0) {
-      r_free = Math.pow(endChapter.hits / startChapter.hits, 1 / step);
-    }
-    const S_ret_free = this.clamp((r_free - 0.970) / (1.000 - 0.970), 0, 1) * 100;
-
-    const likeRatios = windowChapters.map((ch) => (ch.hits > 0 ? ch.likes / ch.hits : 0));
     const EL = this.calculateMedian(likeRatios);
-    const S_like = this.clamp((EL - 0.03) / (0.08 - 0.03), 0, 1) * 100;
+    const EC = this.calculateMedian(commentRatios);
 
-    const Q_total = this.clamp(0.70 * S_ret_free + 0.30 * S_like, 0, 100);
+    // 로그 정규화 반응률 (좋아요 0.3%~6.0%, 댓글 0.05%~0.6%)
+    const s_like = 100 * this.clamp((Math.log(Math.max(0.001, EL)) - Math.log(0.003)) / (Math.log(0.060) - Math.log(0.003)), 0, 1);
+    const s_comment = 100 * this.clamp((EC - 0.0005) / (0.0060 - 0.0005), 0, 1);
+
+    let pillar3 = 0;
+    if (isPaidNovel && favorites > 0 && avgPurchases > 0) {
+      const convRate = avgPurchases / favorites;
+      const s_conv = 100 * this.clamp(convRate / 0.45, 0, 1);
+      pillar3 = 0.20 * (0.45 * s_like + 0.35 * s_comment + 0.20 * s_conv);
+    } else {
+      pillar3 = 0.20 * (0.60 * s_like + 0.40 * s_comment);
+    }
+
+    // ========================================================
+    // 종합 점수 산출 및 등급 판정
+    // ========================================================
+    const totalScore = this.clamp(Math.round((pillar1 + pillar2 + pillar3) * 10) / 10, 0, 100);
+
+    let gradeLabel = 'C급';
+    if (totalScore >= 85) gradeLabel = 'S급 (최상위권)';
+    else if (totalScore >= 70) gradeLabel = 'A급 (안정인기작)';
+    else if (totalScore >= 55) gradeLabel = 'B급 (중위권)';
+
+    let track = 'B';
+    let trackLabel = '유료 표준';
+    if (isFreeNovel) {
+      track = 'A';
+      trackLabel = '무료 잠재력';
+    } else if (isTransNovel) {
+      track = 'T';
+      trackLabel = '신규 전환';
+    }
 
     return {
       valid: true,
-      score: Math.round(Q_total * 10) / 10,
-      track: 'A',
-      trackLabel: '무료 기반',
-      retentionRate: r_free,
-      retentionScore: S_ret_free,
+      score: totalScore,
+      gradeLabel,
+      track,
+      trackLabel,
+      pillar1,
+      pillar2,
+      pillar3,
+      scaleLabel,
+      retentionRate: r,
       medianLikeRatio: EL,
-      likeScore: S_like,
-      medianCommentRatio: null,
-      commentScore: null,
-      sampleRangeLabel: `무료 ${startChapter.num}화 ~ ${endChapter.num}화 기준`,
+      medianCommentRatio: EC,
     };
   },
 
   /**
+   * 문자열 또는 숫자에서 안전하게 밀리초 타임스탬프를 추출합니다.
+   * @param {string|number|null} val
+   * @returns {number|null}
+   */
+  parseDateMs(val) {
+    if (!val) return null;
+    if (typeof val === 'number') {
+      return val < 1e12 ? val * 1000 : val;
+    }
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      const dotMatch = trimmed.match(/^(\d{2,4})[./-](\d{1,2})[./-](\d{1,2})/);
+      if (dotMatch) {
+        let y = parseInt(dotMatch[1], 10);
+        if (y < 100) y += 2000;
+        const m = parseInt(dotMatch[2], 10) - 1;
+        const d = parseInt(dotMatch[3], 10);
+        return new Date(y, m, d).getTime();
+      }
+      const ts = Date.parse(trimmed);
+      if (!isNaN(ts)) return ts;
+    }
+    return null;
+  },
+
+  /**
    * [회차별 퀄리티 스코어 q_k 산출]
+   * 현실적인 연속 연재 독자 이탈률과 로그 반응률을 적용하여 0점 클리프 없이 공정하게 산출합니다.
    * @param {Object} params
    * @param {number} params.currentHits - 현재 회차 조회수/구매수 (V_k)
    * @param {number|null} params.prevHits - 직전 회차 수치 (V_{k-1})
@@ -259,10 +354,10 @@ export const DomUtils = {
     }
 
     const likeRatio = currentHits > 0 ? likes / currentHits : 0;
-    const s_like = this.clamp((likeRatio - 0.03) / (0.08 - 0.03), 0, 1) * 100;
+    const s_like = 100 * this.clamp((Math.log(Math.max(0.001, likeRatio)) - Math.log(0.003)) / (Math.log(0.060) - Math.log(0.003)), 0, 1);
 
     const commentRatio = currentHits > 0 ? (comments || 0) / currentHits : 0;
-    const s_comment = this.clamp((commentRatio - 0.002) / (0.008 - 0.002), 0, 1) * 100;
+    const s_comment = 100 * this.clamp((commentRatio - 0.0005) / (0.0060 - 0.0005), 0, 1);
 
     if (isFirstOrTransition || !prevHits || prevHits <= 0) {
       // 1화 또는 무료->유료 전환 경계인 경우 유지 점수 제외하고 좋아요/댓글 점수로만 100점 환산
@@ -277,8 +372,9 @@ export const DomUtils = {
       };
     }
 
+    // 직전 회차 대비 유지율 (88%~101% 구간 정규화, 회당 2~3% 일상적 감소도 70점대 안정 방어)
     const ratio = currentHits / prevHits;
-    const s_drop = this.clamp((ratio - 0.980) / (1.005 - 0.980), 0, 1) * 100;
+    const s_drop = 100 * this.clamp((ratio - 0.880) / (1.010 - 0.880), 0, 1);
 
     const q = Math.round(this.clamp(0.50 * s_drop + 0.35 * s_like + 0.15 * s_comment, 0, 100));
 
@@ -542,7 +638,7 @@ export const DomUtils = {
   },
 
   /**
-   * [작품 퀄리티 대시보드 카드 생성]
+   * [작품 종합 파워 대시보드 카드 생성]
    * @param {Object} qTotalData
    * @returns {HTMLElement}
    */
@@ -554,7 +650,7 @@ export const DomUtils = {
     if (!qTotalData || !qTotalData.valid) {
       card.innerHTML = `
         <div class="card-header qscore-header">
-          <span class="card-title">작품 종합 퀄리티 (Q-Score)</span>
+          <span class="card-title">작품 종합 파워 (Market Power)</span>
           <span class="qscore-track-badge track-loading">분석 중</span>
         </div>
         <div class="card-body qscore-empty-body">
@@ -566,51 +662,56 @@ export const DomUtils = {
 
     const {
       score,
+      gradeLabel,
       track,
       trackLabel,
+      pillar1,
+      pillar2,
+      pillar3,
+      scaleLabel,
       retentionRate,
       medianLikeRatio,
       medianCommentRatio,
-      sampleRangeLabel,
     } = qTotalData;
 
     let scoreColorClass = 'score-low';
     if (score >= 85) scoreColorClass = 'score-high';
     else if (score >= 70) scoreColorClass = 'score-mid';
 
-    const trackClass = track === 'B' ? 'track-b' : 'track-a';
+    let trackClass = 'track-b';
+    if (track === 'A') trackClass = 'track-a';
+    else if (track === 'T') trackClass = 'track-t';
+
     const retentionDisplay = retentionRate !== null ? `${(retentionRate * 100).toFixed(2)}%` : '-';
     const likeDisplay = medianLikeRatio !== null ? `${(medianLikeRatio * 100).toFixed(2)}%` : '-';
     const commentDisplay = medianCommentRatio !== null ? `${(medianCommentRatio * 100).toFixed(2)}%` : '-';
 
     card.innerHTML = `
       <div class="card-header qscore-header">
-        <span class="card-title">작품 종합 퀄리티 (Q-Score)</span>
-        <span class="qscore-track-badge ${trackClass}">${trackLabel}</span>
+        <span class="card-title">작품 종합 파워 (Market Power)</span>
+        <div class="qscore-header-right">
+          <span class="qscore-track-badge ${trackClass}">${trackLabel}</span>
+          <button type="button" class="qscore-open-dashboard-btn" title="문피아 전체 시장 표본 순위 및 평가 리더보드 열기">📊 시장 표본 순위</button>
+        </div>
       </div>
       <div class="card-body qscore-body">
         <div class="qscore-main-display">
           <span class="qscore-value ${scoreColorClass}">${score.toFixed(1)}</span>
           <span class="qscore-max">/ 100</span>
+          <span class="qscore-grade ${scoreColorClass}">${gradeLabel}</span>
         </div>
         <div class="qscore-sub-metrics">
-          <div class="qscore-sub-item">
-            <span class="sub-label">회당 유지율</span>
-            <span class="sub-value">${retentionDisplay}</span>
+          <div class="qscore-sub-item" title="시장 상업 체급 점수 (${scaleLabel || '구매력 기반'})">
+            <span class="sub-label">상업 체급</span>
+            <span class="sub-value">${pillar1.toFixed(1)} <small>/ 45</small></span>
           </div>
-          <div class="qscore-sub-item">
-            <span class="sub-label">중위 좋아요율</span>
-            <span class="sub-value">${likeDisplay}</span>
+          <div class="qscore-sub-item" title="연재 진행에 따른 독자 이탈 방어율 (회당 ${retentionDisplay})">
+            <span class="sub-label">연독 방어</span>
+            <span class="sub-value">${pillar2.toFixed(1)} <small>/ 35</small></span>
           </div>
-          ${track === 'B' ? `
-          <div class="qscore-sub-item">
-            <span class="sub-label">중위 댓글율</span>
-            <span class="sub-value">${commentDisplay}</span>
-          </div>
-          ` : ''}
-          <div class="qscore-sub-item qscore-sample-range">
-            <span class="sub-label">분석 표본</span>
-            <span class="sub-value">${sampleRangeLabel}</span>
+          <div class="qscore-sub-item" title="좋아요 반응 밀도(${likeDisplay}) 및 댓글 몰입도(${commentDisplay})">
+            <span class="sub-label">독자 반응</span>
+            <span class="sub-value">${pillar3.toFixed(1)} <small>/ 20</small></span>
           </div>
         </div>
       </div>
