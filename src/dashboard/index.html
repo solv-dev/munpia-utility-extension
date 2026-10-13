@@ -93,18 +93,23 @@
         <button class="tab-btn" data-filter="free">무료 투베 (<span id="count-free">0</span>)</button>
         <button class="tab-btn" data-filter="paid">유료 투베 (<span id="count-paid">0</span>)</button>
         <button class="tab-btn" data-filter="bestseller">베스트셀러 (<span id="count-bestseller">0</span>)</button>
+        <button class="tab-btn" data-filter="finish">완결 베스트 (<span id="count-finish">0</span>)</button>
       </div>
       <div class="search-and-sort">
         <input type="text" id="search-input" class="search-input" placeholder="작품명 / 작가 검색...">
         <select id="sort-select" class="sort-select">
           <option value="qscore_desc" selected>🏆 종합 Q-Score 높은 순</option>
+          <option value="revenue_desc">💰 추정 누적 매출 높은 순</option>
+          <option value="chapter_revenue_desc">💵 회차당 평균 매출 높은 순</option>
+          <option value="rank_asc">🏅 랭킹 순위 빠른 순</option>
           <option value="todayviews_desc">🔥 당일 조회수 높은 순</option>
-          <option value="scale_desc">💰 상업 체급(Pillar 1) 순</option>
+          <option value="scale_desc">📊 상업 체급(Pillar 1) 순</option>
           <option value="retention_desc">🛡️ 연독 방어(Pillar 2) 순</option>
           <option value="loyalty_desc">❤️ 독자 반응(Pillar 3) 순</option>
           <option value="fav_desc">⭐ 선호작 많은 순</option>
           <option value="chapters_desc">🔢 화수 많은 순</option>
           <option value="chapters_asc">🆕 최신 신작(적은 화수) 순</option>
+          <option value="title_asc">🔤 작품명 가나다순</option>
         </select>
       </div>
     </div>
@@ -115,15 +120,45 @@
         <table class="leaderboard-table">
           <thead>
             <tr>
-              <th style="width: 50px; text-align: center;">순위</th>
-              <th>작품 정보</th>
-              <th>화수 / 유형</th>
-              <th>종합 Q-Score</th>
-              <th>상업 체급 (45점)</th>
-              <th>연독 방어 (35점)</th>
-              <th>독자 반응 (20점)</th>
-              <th>핵심 원천 지표</th>
-              <th style="text-align: center;">바로가기</th>
+              <th class="sortable-th" data-sort="rank" style="width: 55px; text-align: center;" title="순위 기준 정렬">
+                <span class="th-content">순위 <span class="sort-icon">↕</span></span>
+              </th>
+              <th class="sortable-th" data-sort="title" title="작품명 가나다순 정렬">
+                <span class="th-content">작품 정보 <span class="sort-icon">↕</span></span>
+              </th>
+              <th class="sortable-th" data-sort="chapters" title="연재 화수 기준 정렬">
+                <span class="th-content">화수 / 유형 <span class="sort-icon">↕</span></span>
+              </th>
+              <th class="sortable-th active-sort desc" data-sort="qscore" title="종합 Q-Score 기준 정렬">
+                <span class="th-content">종합 Q-Score <span class="sort-icon">▼</span></span>
+              </th>
+              <th class="sortable-th" data-sort="scale" title="상업 체급 점수 기준 정렬">
+                <span class="th-content">상업 체급 (45점) <span class="sort-icon">↕</span></span>
+              </th>
+              <th class="sortable-th" data-sort="retention" title="연독 방어 점수 기준 정렬">
+                <span class="th-content">연독 방어 (35점) <span class="sort-icon">↕</span></span>
+              </th>
+              <th class="sortable-th" data-sort="loyalty" title="독자 반응 점수 기준 정렬">
+                <span class="th-content">독자 반응 (20점) <span class="sort-icon">↕</span></span>
+              </th>
+              <th class="dual-sort-th" style="min-width: 140px;">
+                <div class="dual-th-content">
+                  <span class="dual-th-title">💰 추정 매출</span>
+                  <div class="dual-sort-chips">
+                    <button type="button" class="sort-chip-btn" data-sort="revenue" title="추정 누적 매출 기준 정렬">
+                      누적 <span class="sort-icon">↕</span>
+                    </button>
+                    <span class="sort-chip-divider">/</span>
+                    <button type="button" class="sort-chip-btn" data-sort="chapter_revenue" title="회차당 평균 매출 기준 정렬">
+                      회차당 <span class="sort-icon">↕</span>
+                    </button>
+                  </div>
+                </div>
+              </th>
+              <th class="sortable-th" data-sort="fav" title="선호작 및 조회수 기준 정렬">
+                <span class="th-content">핵심 원천 지표 <span class="sort-icon">↕</span></span>
+              </th>
+              <th style="text-align: center; width: 60px;">바로가기</th>
             </tr>
           </thead>
           <tbody id="leaderboard-tbody">

@@ -13,6 +13,8 @@ class DashboardController {
     this.evaluatedSamples = [];
     this.currentFilter = 'all';
     this.currentSort = 'qscore_desc';
+    this.currentSortKey = 'qscore';
+    this.currentSortOrder = 'desc';
     this.searchQuery = '';
   }
 
@@ -28,12 +30,40 @@ class DashboardController {
 
     // 4. 이벤트 바인딩
     this.bindEvents();
+    this.updateHeaderSortIcons();
 
     // 5. 리더보드 테이블 렌더링
     this.renderLeaderboard();
 
     // 6. 시뮬레이터 초기 실행
     this.runSimulator();
+  }
+
+  formatRevenue(val) {
+    if (!val || val <= 0) return '<span class="rev-zero">-</span>';
+    if (val >= 100000000) {
+      const eok = (val / 100000000).toFixed(1);
+      return `<span class="rev-val highlight-gold">약 <strong>${eok}억</strong> 원</span>`;
+    }
+    if (val >= 10000) {
+      const man = Math.round(val / 10000).toLocaleString('ko-KR');
+      return `<span class="rev-val highlight-gold">약 <strong>${man}만</strong> 원</span>`;
+    }
+    return `<span class="rev-val">${val.toLocaleString('ko-KR')}원</span>`;
+  }
+
+  formatAvgRevenue(val) {
+    if (!val || val <= 0) return '';
+    if (val >= 100000000) {
+      const eok = (val / 100000000).toFixed(1);
+      return `<span class="rev-avg-chapter">회차당 약 <strong>${eok}억</strong> 원</span>`;
+    }
+    if (val >= 10000) {
+      const man = (val / 10000).toFixed(1);
+      const formattedMan = man.endsWith('.0') ? (val / 10000).toFixed(0) : man;
+      return `<span class="rev-avg-chapter">회차당 약 <strong>${formattedMan}만</strong> 원</span>`;
+    }
+    return `<span class="rev-avg-chapter">회차당 약 <strong>${val.toLocaleString('ko-KR')}</strong>원</span>`;
   }
 
   initTheme() {
@@ -85,17 +115,32 @@ class DashboardController {
   }
 
   evaluateSample(item) {
+    // 실측 데이터셋에 이미 100% 정밀 연산된 Q-Score 및 매출 지표가 있는 경우 그대로 사용
+    if (item.totalScore !== undefined && item.pillar1 !== undefined && item.estimatedRevenue !== undefined) {
+      const topPct = item.percentile !== undefined ? item.percentile : Math.max(0.001, (1 - (item.pillar1 / 45)));
+      return {
+        ...item,
+        percentile: topPct,
+        likeRatio: item.medianLikeRatio || item.likeRatio || 0.02,
+        formattedRevenue: this.formatRevenue(item.estimatedRevenue),
+        formattedAvgRevenue: this.formatAvgRevenue(item.avgRevenuePerChapter || 0)
+      };
+    }
+
     const n = Math.max(1, item.chapterCount);
     const isPaid = Boolean(item.isPaid);
     const paidCount = item.paidChapters || (isPaid ? Math.max(1, n - 25) : 0);
+    const avgPurchases = isPaid ? Math.round(item.avgViews * 0.88) : 0;
+    const estimatedRevenue = isPaid ? Math.round(paidCount * avgPurchases * 100) : 0;
+    const avgRevenuePerChapter = isPaid ? Math.round(avgPurchases * 100) : 0;
 
     // 1) 상업 체급 (Pillar 1, 45점 만점)
     const scaleEval = marketBenchmark.evaluateScalePower({
       isPaid,
       favorites: item.favorites,
       avgFreeHits: item.avgViews,
-      avgPurchases: isPaid ? Math.round(item.avgViews * 0.9) : 0,
-      totalRevenue: isPaid ? Math.round(item.totalViews * 100 * 0.7) : 0,
+      avgPurchases,
+      totalRevenue: estimatedRevenue,
       totalChapters: n,
       paidChaptersCount: paidCount,
     });
@@ -174,6 +219,10 @@ class DashboardController {
       percentile: scaleEval.percentile,
       retentionRate: r,
       likeRatio,
+      estimatedRevenue,
+      avgRevenuePerChapter,
+      formattedRevenue: this.formatRevenue(estimatedRevenue),
+      formattedAvgRevenue: this.formatAvgRevenue(avgRevenuePerChapter)
     };
   }
 
@@ -205,11 +254,13 @@ class DashboardController {
     const countFree = document.getElementById('count-free');
     const countPaid = document.getElementById('count-paid');
     const countBestseller = document.getElementById('count-bestseller');
+    const countFinish = document.getElementById('count-finish');
 
     if (countAll) countAll.textContent = this.evaluatedSamples.length;
     if (countFree) countFree.textContent = this.evaluatedSamples.filter((s) => s.ranks?.free != null).length;
     if (countPaid) countPaid.textContent = this.evaluatedSamples.filter((s) => s.ranks?.paid != null).length;
     if (countBestseller) countBestseller.textContent = this.evaluatedSamples.filter((s) => s.ranks?.bestseller != null).length;
+    if (countFinish) countFinish.textContent = this.evaluatedSamples.filter((s) => s.ranks?.finish != null).length;
   }
 
   bindEvents() {
@@ -229,9 +280,18 @@ class DashboardController {
     if (sortSelect) {
       sortSelect.addEventListener('change', (e) => {
         this.currentSort = e.target.value;
+        const lastUnderscore = this.currentSort.lastIndexOf('_');
+        if (lastUnderscore > 0) {
+          this.currentSortKey = this.currentSort.slice(0, lastUnderscore);
+          this.currentSortOrder = this.currentSort.slice(lastUnderscore + 1);
+        }
+        this.updateHeaderSortIcons();
         this.renderLeaderboard();
       });
     }
+
+    // 테이블 헤더 정렬 버튼 바인딩
+    this.bindHeaderSort();
 
     // 검색 인풋
     const searchInput = document.getElementById('search-input');
@@ -271,6 +331,60 @@ class DashboardController {
         }
         this.runSimulator();
       });
+    }
+  }
+
+  bindHeaderSort() {
+    const triggers = document.querySelectorAll('.sortable-th, .sort-chip-btn');
+    triggers.forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const sortKey = el.getAttribute('data-sort');
+        if (!sortKey) return;
+
+        if (this.currentSortKey === sortKey) {
+          this.currentSortOrder = this.currentSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+          this.currentSortKey = sortKey;
+          this.currentSortOrder = (sortKey === 'rank' || sortKey === 'title') ? 'asc' : 'desc';
+        }
+
+        this.currentSort = `${this.currentSortKey}_${this.currentSortOrder}`;
+        this.syncSortSelect();
+        this.updateHeaderSortIcons();
+        this.renderLeaderboard();
+      });
+    });
+  }
+
+  updateHeaderSortIcons() {
+    const triggers = document.querySelectorAll('.sortable-th, .sort-chip-btn');
+    triggers.forEach((el) => {
+      const sortKey = el.getAttribute('data-sort');
+      const icon = el.querySelector('.sort-icon');
+      if (sortKey === this.currentSortKey) {
+        el.classList.add('active-sort');
+        el.classList.remove('asc', 'desc');
+        el.classList.add(this.currentSortOrder);
+        if (icon) {
+          icon.textContent = this.currentSortOrder === 'asc' ? '▲' : '▼';
+        }
+      } else {
+        el.classList.remove('active-sort', 'asc', 'desc');
+        if (icon) {
+          icon.textContent = '↕';
+        }
+      }
+    });
+  }
+
+  syncSortSelect() {
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+      const matchingOption = sortSelect.querySelector(`option[value="${this.currentSort}"]`);
+      if (matchingOption) {
+        sortSelect.value = this.currentSort;
+      }
     }
   }
 
@@ -322,6 +436,8 @@ class DashboardController {
       filtered = filtered.filter((s) => s.ranks?.paid != null);
     } else if (this.currentFilter === 'bestseller') {
       filtered = filtered.filter((s) => s.ranks?.bestseller != null);
+    } else if (this.currentFilter === 'finish') {
+      filtered = filtered.filter((s) => s.ranks?.finish != null);
     }
 
     // 2. 검색
@@ -337,24 +453,48 @@ class DashboardController {
     }
 
     // 3. 정렬 (줄 세우기)
+    const getMinRank = (item) => {
+      if (this.currentFilter && this.currentFilter !== 'all' && item.ranks?.[this.currentFilter] != null) {
+        return item.ranks[this.currentFilter];
+      }
+      const rList = [item.ranks?.free, item.ranks?.paid, item.ranks?.bestseller, item.ranks?.finish].filter(r => r != null && r > 0);
+      return rList.length > 0 ? Math.min(...rList) : 99999;
+    };
+
     filtered.sort((a, b) => {
-      switch (this.currentSort) {
-        case 'qscore_desc': return b.totalScore - a.totalScore;
-        case 'todayviews_desc': return (b.todayViews || 0) - (a.todayViews || 0);
-        case 'scale_desc': return b.pillar1 - a.pillar1;
-        case 'retention_desc': return b.pillar2 - a.pillar2;
-        case 'loyalty_desc': return b.pillar3 - a.pillar3;
-        case 'fav_desc': return b.favorites - a.favorites;
-        case 'chapters_desc': return b.chapterCount - a.chapterCount;
-        case 'chapters_asc': return a.chapterCount - b.chapterCount;
-        default: return b.totalScore - a.totalScore;
+      const orderMul = this.currentSortOrder === 'asc' ? 1 : -1;
+      switch (this.currentSortKey) {
+        case 'rank':
+          return (getMinRank(a) - getMinRank(b)) * orderMul;
+        case 'title':
+          return a.title.localeCompare(b.title, 'ko') * orderMul;
+        case 'chapters':
+          return (a.chapterCount - b.chapterCount) * orderMul;
+        case 'qscore':
+          return (a.totalScore - b.totalScore) * orderMul;
+        case 'scale':
+          return (a.pillar1 - b.pillar1) * orderMul;
+        case 'retention':
+          return (a.pillar2 - b.pillar2) * orderMul;
+        case 'loyalty':
+          return (a.pillar3 - b.pillar3) * orderMul;
+        case 'revenue':
+          return ((a.estimatedRevenue || 0) - (b.estimatedRevenue || 0)) * orderMul;
+        case 'chapter_revenue':
+          return ((a.avgRevenuePerChapter || 0) - (b.avgRevenuePerChapter || 0)) * orderMul;
+        case 'fav':
+          return (a.favorites - b.favorites) * orderMul;
+        case 'todayviews':
+          return ((a.todayViews || 0) - (b.todayViews || 0)) * orderMul;
+        default:
+          return (a.totalScore - b.totalScore) * orderMul;
       }
     });
 
     if (filtered.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
+          <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">
             조건에 일치하는 표본 작품이 없습니다.
           </td>
         </tr>
@@ -371,7 +511,9 @@ class DashboardController {
       else if (rank === 3) rankClass = 'rank-top-3';
 
       let typeBadge = '<span class="type-badge type-free">무료</span>';
-      if (item.isPaid) {
+      if (item.ranks?.finish != null) {
+        typeBadge = '<span class="type-badge type-paid">완결</span>';
+      } else if (item.isPaid) {
         if (item.paidChapters > 0 && item.paidChapters < 10) {
           typeBadge = '<span class="type-badge type-trans">신규전환</span>';
         } else {
@@ -386,6 +528,7 @@ class DashboardController {
         let bClass = 'badge-best-rank';
         if (b.includes('무료')) bClass = 'badge-free-rank';
         else if (b.includes('유료')) bClass = 'badge-paid-rank';
+        else if (b.includes('완결')) bClass = 'badge-finish-rank';
         return `<span class="rank-badge ${bClass}">${b}</span>`;
       }).join(' ');
 
@@ -428,6 +571,12 @@ class DashboardController {
             <div class="sub-score-box">
               <span class="sub-score-val">${item.pillar3.toFixed(1)} <small>/ 20</small></span>
               <span class="sub-score-pct">좋아요 ${(item.likeRatio * 100).toFixed(1)}%</span>
+            </div>
+          </td>
+          <td class="revenue-cell">
+            <div class="revenue-box">
+              ${item.formattedRevenue}
+              ${item.formattedAvgRevenue}
             </div>
           </td>
           <td>
