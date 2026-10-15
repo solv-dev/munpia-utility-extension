@@ -141,7 +141,7 @@ flowchart LR
 | `chapter-retention` | **1화 대비 연독률(잔존율) 인라인 표시** | `munpia.com/*` (회차 목록) | ✅ 활성화 (v0.5.0) | 모든 회차에 1화 조회수 기준 연독 비율(`1화대비 X.XX%`) 및 누적 이탈률 인라인 표시 |
 | `novel-total-qscore` | **작품 종합 파워 지수 (Market Power Q-Score)** | `munpia.com/*` (작품 상세) | ✅ 활성화 (v0.6.1) | 3대 기둥(체급 45 / 연독 35 / 반응 20) 기반 전 생애주기 평가 및 문피아 시장 표본 백분위 모델 |
 | `chapter-episode-qscore` | **회차별 퀄리티 스코어 (Episode Q-Score)** | `munpia.com/*` (회차 목록) | ✅ 활성화 (v0.6.0) | 각 회차 행에 단일 완성도 측정 점수 `[Q 82]` 뱃지 및 세부 유지/좋아요/댓글 점수 툴팁 주입 |
-| `market-dashboard-leaderboard` | **문피아 시장 표본 평가 랭킹 리더보드 대시보드** | `전용 탭` (`src/dashboard/index.html`) | ✅ 활성화 (v0.8.0) | 4대 랭킹 665개 표본 줄 세우기, 추정 누적/회차당 매출 산출, 듀얼 정렬 칩, 실시간 시뮬레이터 및 3대 기둥 평가서 |
+| `market-dashboard-leaderboard` | **문피아 시장 표본 평가 랭킹 리더보드 대시보드** | `전용 탭` (`src/dashboard/index.html`) | ✅ 활성화 (v0.7.1) | 4대 랭킹 665개 표본 줄 세우기, 추정 누적/회차당 매출 산출, 듀얼 정렬 칩, 실시간 시뮬레이터 및 3대 기둥 평가서 |
 | `export-csv` | 회차 통계 CSV 다운로드 | `munpia.com/*` (작품 상세) | 📋 예정 | 전체 회차 통계 데이터를 엑셀(CSV)로 내보내기 |
 | `view-trend-chart` | 연독률 추이 미니 그래프 | `munpia.com/*` (작품 상세) | 📋 예정 | 회차별 조회수/추천수 하락 추이를 시각화하는 차트 |
 | `comment-ratio` | 회차별 댓글 참여율 분석 | `munpia.com/*` (회차 목록) | 📋 예정 | `(댓글수/조회수)*100%` 독자 반응성 분석 지표 |
@@ -252,7 +252,7 @@ $$Score = 100 \times \frac{1}{1 + e^{-0.85 \cdot Z}} \quad (\text{100점 점근 
 
 본 프로젝트의 상세 버전별 변경 내역(신규 기능 추가, 버그 수정, 아키텍처 개편 등)은 프로젝트 루트의 **[CHANGELOG.md](CHANGELOG.md)**에서 독립적으로 관리됩니다.
 
-* **현재 배포 버전**: `v0.8.0` (2026-10-13)
+* **현재 배포 버전**: `v0.8.1` (2026-10-15)
 * **버전 관리 표준**: [Semantic Versioning 2.0.0](https://semver.org/lang/ko/) 및 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/) 준수
 * **상세 변경 이력**: 전체 버전 히스토리는 [CHANGELOG.md](CHANGELOG.md)를 참조하십시오.
 

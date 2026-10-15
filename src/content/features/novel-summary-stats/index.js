@@ -245,9 +245,6 @@ export class NovelSummaryStatsFeature extends BaseFeature {
       }
 
       dashboardRow.innerHTML = '';
-      if (revCard) {
-        dashboardRow.appendChild(revCard);
-      }
       if (qCard) {
         const openBtn = qCard.querySelector('.qscore-open-dashboard-btn');
         if (openBtn) {
@@ -261,6 +258,9 @@ export class NovelSummaryStatsFeature extends BaseFeature {
         }
         dashboardRow.appendChild(qCard);
       }
+      if (revCard) {
+        dashboardRow.appendChild(revCard);
+      }
 
       // 이전 버전의 단독 정산 라인이 남아있다면 정리
       const oldRevLine = document.querySelector('[data-munpia-summary="revenue-stats"]');
@@ -268,6 +268,121 @@ export class NovelSummaryStatsFeature extends BaseFeature {
 
       if (dashboardRow.parentElement !== insertedStatLine.parentElement || dashboardRow.previousElementSibling !== insertedStatLine) {
         insertedStatLine.insertAdjacentElement('afterend', dashboardRow);
+      }
+
+      // 10. [munpia_extractor 연동] 작품 상세 및 전 회차 분석 메타데이터 localStorage 캐싱
+      try {
+        const sortedChapters = [...allChapters].sort((a, b) => a.num - b.num);
+        const ch1 = sortedChapters.find((c) => c.num === 1) || sortedChapters[0];
+        const ch1Hits = ch1 ? (ch1.hits || 0) : 0;
+
+        const enrichedChapters = [];
+        for (let i = 0; i < sortedChapters.length; i++) {
+          const ch = sortedChapters[i];
+          const prevCh = i > 0 ? sortedChapters[i - 1] : null;
+          const currentHits = ch.hits || 0;
+          const likes = ch.likes || 0;
+          const comments = ch.commentCount || 0;
+          const isPaid = Boolean(ch.isPaid);
+
+          const likeRatio = currentHits > 0 ? Number(((likes / currentHits) * 100).toFixed(2)) : 0;
+          const retentionRate = ch1Hits > 0 ? Number(((currentHits / ch1Hits) * 100).toFixed(2)) : 100.0;
+          let dropRate = null;
+          if (prevCh && prevCh.hits > 0) {
+            dropRate = Number((((prevCh.hits - currentHits) / prevCh.hits) * 100).toFixed(2));
+          }
+
+          const isFirstOrTransition = (i === 0) || (isPaid && prevCh && !prevCh.isPaid);
+          const epQ = DomUtils.calculateEpisodeQScore({
+            currentHits,
+            prevHits: prevCh ? prevCh.hits : null,
+            likes,
+            comments,
+            isFirstOrTransition,
+          });
+
+          enrichedChapters.push({
+            num: ch.num,
+            title: ch.title || `${ch.num}화`,
+            isPaid,
+            createdAt: ch.createdAt || null,
+            hits: currentHits,
+            likes,
+            comments,
+            likeRatio,
+            retentionRate,
+            dropRate,
+            qScore: (epQ && typeof epQ.score === 'number') ? epQ.score : 0,
+          });
+        }
+
+        const totalRevenue = Math.round(paidPurchasesSum * 100);
+        const platformFee = Math.round(totalRevenue * 0.37);
+        const distributable = totalRevenue - platformFee;
+        const writer90 = Math.round(distributable * 0.90);
+        const net90 = Math.round(writer90 * 0.967);
+        const writer80 = Math.round(distributable * 0.80);
+        const net80 = Math.round(writer80 * 0.967);
+        const writer70 = Math.round(distributable * 0.70);
+        const net70 = Math.round(writer70 * 0.967);
+
+        const pageMeta = extractNovelPageMeta();
+        const novelId = chapterDataProvider.extractNovelId(window.location.href) || chapterDataProvider.currentNovelId;
+
+        if (novelId) {
+          const avgPurchases = stats.paidCount > 0 ? Math.round(paidPurchasesSum / stats.paidCount) : 0;
+          const convRate = (headerFavorites > 0 && avgPurchases > 0)
+            ? Number(((avgPurchases / headerFavorites) * 100).toFixed(2))
+            : 0;
+          const totalRetention = (ch1Hits > 0 && enrichedChapters.length > 0)
+            ? Number(((enrichedChapters[enrichedChapters.length - 1].hits / ch1Hits) * 100).toFixed(2))
+            : 0;
+
+          const cachePayload = {
+            novelId,
+            title: pageMeta.title,
+            author: pageMeta.author,
+            genre: pageMeta.genre,
+            uci: pageMeta.uci,
+            regDate: headerRegDate,
+            recentDate: headerRecentDate,
+            totalChapters: stats.totalChapters || allChapters.length,
+            capturedAt: new Date().toISOString(),
+            overallStats: {
+              totalViews: totalHeaderViews || (freeHitsSum + paidPurchasesSum),
+              freeViews: freeHitsSum,
+              paidPurchases: paidPurchasesSum,
+              favorites: headerFavorites,
+              totalLikes: headerLikes,
+              avgPurchases,
+              grossRevenue: totalRevenue,
+              platformFee,
+              netRevenueBreakdown: {
+                ratio90: { gross: writer90, net: net90 },
+                ratio80: { gross: writer80, net: net80 },
+                ratio70: { gross: writer70, net: net70 },
+              },
+              qScore: {
+                score: qTotalData.score,
+                pillar1: qTotalData.pillar1,
+                pillar2: qTotalData.pillar2,
+                pillar3: qTotalData.pillar3,
+                gradeLabel: qTotalData.gradeLabel,
+                scaleLabel: qTotalData.scaleLabel,
+                trackLabel: qTotalData.trackLabel,
+                percentile: qTotalData.percentile,
+              },
+              conversionRate: convRate,
+              totalRetention,
+            },
+            chapters: enrichedChapters,
+          };
+
+          localStorage.setItem(`munpia_novel_stats_${novelId}`, JSON.stringify(cachePayload));
+          console.log(`[Munpia Utility] 작품(${novelId}) 메타데이터 localStorage 캐싱 완료 (${enrichedChapters.length}개 회차)`);
+        }
+      } catch (cacheErr) {
+        console.warn('[Munpia Utility] 메타데이터 캐싱 중 오류 발생:', cacheErr);
       }
     }
 
@@ -290,3 +405,54 @@ export class NovelSummaryStatsFeature extends BaseFeature {
     this.lastRenderedKey = '';
   }
 }
+
+/**
+ * 작품 상세 화면 DOM에서 제목, 작가, 장르, UCI 메타데이터를 정밀 추출합니다.
+ */
+function extractNovelPageMeta() {
+  let title = '';
+  let author = '';
+  let genre = '';
+  let uci = '';
+
+  // 1. 작품 제목
+  const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
+  if (ogTitle) {
+    title = ogTitle.split('::')[0].trim();
+  }
+  if (!title) {
+    const titleEl = document.querySelector('h2.title, h1.title, [class*="titleButton_"], [class*="detail_section"] [class*="title"], [class*="header"] [class*="title"]');
+    if (titleEl) title = titleEl.textContent.trim();
+  }
+  if (!title && document.title) {
+    title = document.title.split('::')[0].split('-')[0].trim();
+  }
+
+  // 2. 작가명
+  const ogAuthor = document.querySelector('meta[name="author"], meta[property="article:author"]')?.getAttribute('content');
+  if (ogAuthor) {
+    author = ogAuthor.trim();
+  }
+  if (!author) {
+    const authorEl = document.querySelector('[class*="author"], [class*="writer"], a[href*="/author/"], .author');
+    if (authorEl) author = authorEl.textContent.trim().replace(/^저자\s*[:\s]?/, '');
+  }
+
+  // 3. 장르 및 UCI (상세 정보 행 순회)
+  const infoElements = DomUtils.queryAll('[class*="infoRows"], [class*="detailInfo"], [class*="info_detail"], [class*="info_section"], div', document.body);
+  for (const el of infoElements) {
+    const text = el.textContent || '';
+    if (text.length > 500) continue;
+    if (!genre && (text.includes('장르') || text.includes('분류'))) {
+      const gm = text.match(/(?:장르|분류)\s*[:\s]?\s*([가-힣A-Za-z0-9\s/]+)/);
+      if (gm) genre = gm[1].trim();
+    }
+    if (!uci && text.includes('UCI')) {
+      const um = text.match(/UCI\s*[:\s]?\s*([A-Za-z0-9_:-]+)/i);
+      if (um) uci = um[1].trim();
+    }
+  }
+
+  return { title, author, genre, uci };
+}
+
